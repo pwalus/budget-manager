@@ -1,0 +1,15 @@
+{
+  "name": "budget-manager-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for budget manager data import",
+  "main": "import-tags.js",
+  "scripts": {
+    "import-tags": "node import-tags.js",
+    "import-accounts": "node import-accounts.js",
+    "import-transactions": "node import-transactions.js"
+  },
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "pg": "^8.11.3"
+  }
+}

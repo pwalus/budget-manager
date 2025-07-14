@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: budget-manager-db
+    environment:
+      POSTGRES_DB: budget_manager
+      POSTGRES_USER: budget_user
+      POSTGRES_PASSWORD: budget_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    networks:
+      - budget-manager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budget_user -d budget_manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: budget-manager-server
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: budget_manager
+      DB_USER: budget_user
+      DB_PASSWORD: budget_password
+      APP_PASSWORD: ${APP_PASSWORD}
+      COINMARKETCAP_API_KEY: ${COINMARKETCAP_API_KEY}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    networks:
+      - budget-manager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.frontend
+    container_name: budget-manager-frontend
+    ports:
+      - "8080:80"
+    networks:
+      - budget-manager-network
+    depends_on:
+      - server
+    environment:
+      - VITE_API_URL=http://server:3001
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  budget-manager-network:
+    driver: bridge
