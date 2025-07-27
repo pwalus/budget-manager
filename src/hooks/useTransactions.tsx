@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { transactionsAPI } from "@/lib/api";
 import { useAuth } from "./useAuth";
 import { toast } from "@/hooks/use-toast";
-import { Transaction } from "@/types/database";
+import { Transaction, BulkImportResult } from "@/types/database";
 
 export const useTransactions = (tagFilter?: string | null, search?: string, status?: string) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -138,7 +138,10 @@ export const useTransactions = (tagFilter?: string | null, search?: string, stat
     }
   };
 
-  const bulkImportTransactions = async (transactions: any[], accountId: string) => {
+  const bulkImportTransactions = async (
+    transactions: Omit<Transaction, "id" | "created_at" | "updated_at">[],
+    accountId: string
+  ): Promise<BulkImportResult | null> => {
     if (!isAuthenticated) return null;
 
     try {
@@ -147,8 +150,8 @@ export const useTransactions = (tagFilter?: string | null, search?: string, stat
       toast({
         title: "Success",
         description: `${result.importedCount} transactions imported successfully${
-          result.skippedCount > 0 ? `, ${result.skippedCount} skipped` : ""
-        }`,
+          result.duplicatedCount > 0 ? `, ${result.duplicatedCount} marked as duplicates` : ""
+        }${result.skippedCount > 0 ? `, ${result.skippedCount} skipped` : ""}`,
       });
       return result;
     } catch (error) {

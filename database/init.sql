@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create enum types
 CREATE TYPE account_type AS ENUM ('bank', 'credit', 'savings', 'investment');
 CREATE TYPE transaction_type AS ENUM ('income', 'expense', 'transfer');
-CREATE TYPE transaction_status AS ENUM ('pending', 'cleared');
+CREATE TYPE transaction_status AS ENUM ('pending', 'cleared', 'duplicated');
 
 -- Create accounts table
 CREATE TABLE public.accounts (

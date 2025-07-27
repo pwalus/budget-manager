@@ -416,6 +416,7 @@ app.post("/api/transactions/bulk-import", async (req, res) => {
 
       const importedTransactions = [];
       let importedCount = 0;
+      let duplicatedCount = 0;
       let skippedCount = 0;
 
       for (const transaction of transactions) {
@@ -459,27 +460,50 @@ app.post("/api/transactions/bulk-import", async (req, res) => {
             date = `${isoDate}T00:00:00.000Z`;
           }
 
-          // Check for duplicate transaction
+          // Check for duplicate transaction using similarity check
+          // Look for transactions with the same amount and similar description
           const duplicateCheck = await client.query(
-            `SELECT 1 FROM transactions WHERE account_id = $1 AND date = $2 AND description = $3 AND amount = $4 LIMIT 1`,
-            [accountId, date, transaction.description || "", amount]
+            `SELECT id, description FROM transactions 
+             WHERE account_id = $1 AND amount = $2 AND ABS(EXTRACT(EPOCH FROM (date - $3::timestamp))) < 86400 * 7
+             ORDER BY date DESC LIMIT 10`,
+            [accountId, amount, date]
           );
-          if (duplicateCheck.rows.length > 0) {
-            skippedCount++;
-            continue;
+
+          // Check if any existing transaction has a description that contains or is contained in the new description
+          let isDuplicate = false;
+          const newDescription = (transaction.description || "").toLowerCase().trim();
+
+          for (const existingTx of duplicateCheck.rows) {
+            const existingDescription = (existingTx.description || "").toLowerCase().trim();
+
+            // Check if descriptions contain each other (allowing for some variation)
+            if (existingDescription.length > 3 && newDescription.length > 3) {
+              if (existingDescription.includes(newDescription) || newDescription.includes(existingDescription)) {
+                isDuplicate = true;
+                break;
+              }
+            }
           }
+
+          // Determine status based on duplicate check
+          const status = isDuplicate ? "duplicated" : "pending";
 
           const result = await client.query(
             `INSERT INTO transactions (account_id, date, description, amount, type, status) 
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [accountId, date, transaction.description || "", amount, type, "pending"]
+            [accountId, date, transaction.description || "", amount, type, status]
           );
 
           importedTransactions.push({
             ...result.rows[0],
             amount: parseFloat(result.rows[0].amount),
           });
-          importedCount++;
+
+          if (status === "duplicated") {
+            duplicatedCount++;
+          } else {
+            importedCount++;
+          }
         } catch (error) {
           console.error(`Error importing transaction: ${transaction.description}`, error);
           skippedCount++;
@@ -491,6 +515,7 @@ app.post("/api/transactions/bulk-import", async (req, res) => {
       res.json({
         success: true,
         importedCount,
+        duplicatedCount,
         skippedCount,
         transactions: importedTransactions,
       });

@@ -29,7 +29,7 @@ interface Transaction {
   description: string;
   amount: number;
   type: "income" | "expense" | "transfer";
-  status: "pending" | "cleared";
+  status: "pending" | "cleared" | "duplicated";
   tags?: string[];
   account_id: string;
   from_account_id?: string;
@@ -132,6 +132,14 @@ export const TransactionGrid = ({
         </Badge>
       );
     }
+    if (status === "duplicated") {
+      return (
+        <Badge variant="secondary" className="bg-destructive-light text-destructive">
+          <X className="h-3 w-3 mr-1" />
+          Duplicated
+        </Badge>
+      );
+    }
     return (
       <Badge variant="secondary" className="bg-success-light text-success">
         <CheckCircle className="h-3 w-3 mr-1" />
@@ -163,7 +171,7 @@ export const TransactionGrid = ({
       const updates: Partial<Transaction> = {};
 
       if (bulkField === "status") {
-        updates.status = bulkValue as "pending" | "cleared";
+        updates.status = bulkValue as "pending" | "cleared" | "duplicated";
       } else if (bulkField === "type") {
         updates.type = bulkValue as "income" | "expense" | "transfer";
       } else if (bulkField === "addTag") {
@@ -281,6 +289,32 @@ export const TransactionGrid = ({
     return undefined;
   };
 
+  // Helper to get transfer destination/source account name
+  const getTransferAccountInfo = (transaction: Transaction) => {
+    if (transaction.type !== "transfer") return null;
+
+    const direction = getTransferDirection(transaction);
+
+    if (direction === "outgoing" && transaction.to_account_id) {
+      const toAccount = accounts.find((a) => a.id === transaction.to_account_id);
+      return { direction: "to", accountName: toAccount?.name || "Unknown Account" };
+    } else if (direction === "incoming" && transaction.from_account_id) {
+      const fromAccount = accounts.find((a) => a.id === transaction.from_account_id);
+      return { direction: "from", accountName: fromAccount?.name || "Unknown Account" };
+    } else if (!selectedAccountId) {
+      // When no specific account is selected, show both directions
+      const fromAccount = accounts.find((a) => a.id === transaction.from_account_id);
+      const toAccount = accounts.find((a) => a.id === transaction.to_account_id);
+      return {
+        direction: "both",
+        fromAccountName: fromAccount?.name || "Unknown Account",
+        toAccountName: toAccount?.name || "Unknown Account",
+      };
+    }
+
+    return null;
+  };
+
   // Remove all console.log and useEffect debug statements for tag search
 
   const filteredTags = allTags.filter((tag) => tag.name.toLowerCase().includes(tagSearchValue.trim().toLowerCase()));
@@ -320,6 +354,7 @@ export const TransactionGrid = ({
                     <>
                       <SelectItem value="cleared">Cleared</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="duplicated">Duplicated</SelectItem>
                     </>
                   )}
                   {bulkField === "type" && (
@@ -494,18 +529,37 @@ export const TransactionGrid = ({
                       <>
                         {transaction.type === "expense" ? "-" : ""}
                         {formatCurrency(transaction.amount, getAccountCurrency(transaction.account_id))}
-                        {transaction.type === "transfer" && getTransferDirection(transaction) === "outgoing" && (
-                          <span className="ml-2 text-xs text-expense flex items-center">
-                            <ArrowLeftRight className="inline h-3 w-3 mr-1 rotate-180" />
-                            Outgoing
-                          </span>
-                        )}
-                        {transaction.type === "transfer" && getTransferDirection(transaction) === "incoming" && (
-                          <span className="ml-2 text-xs text-success flex items-center">
-                            <ArrowLeftRight className="inline h-3 w-3 mr-1" />
-                            Incoming
-                          </span>
-                        )}
+                        {transaction.type === "transfer" &&
+                          (() => {
+                            const transferInfo = getTransferAccountInfo(transaction);
+                            const direction = getTransferDirection(transaction);
+
+                            if (transferInfo?.direction === "both") {
+                              return (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  <div className="flex items-center">
+                                    <ArrowLeftRight className="h-3 w-3 mr-1" />
+                                    {transferInfo.fromAccountName} → {transferInfo.toAccountName}
+                                  </div>
+                                </div>
+                              );
+                            } else if (direction === "outgoing" && transferInfo) {
+                              return (
+                                <div className="mt-1 text-xs text-expense flex items-center">
+                                  <ArrowLeftRight className="h-3 w-3 mr-1 rotate-180" />
+                                  To: {transferInfo.accountName}
+                                </div>
+                              );
+                            } else if (direction === "incoming" && transferInfo) {
+                              return (
+                                <div className="mt-1 text-xs text-success flex items-center">
+                                  <ArrowLeftRight className="h-3 w-3 mr-1" />
+                                  From: {transferInfo.accountName}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                       </>
                     )}
                   </TableCell>
@@ -539,16 +593,17 @@ export const TransactionGrid = ({
                     {editingTransaction === transaction.id ? (
                       <Select
                         value={editFormData.status}
-                        onValueChange={(value: "pending" | "cleared") =>
+                        onValueChange={(value: "pending" | "cleared" | "duplicated") =>
                           setEditFormData({ ...editFormData, status: value })
                         }
                       >
-                        <SelectTrigger className="w-28">
+                        <SelectTrigger className="w-32">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="cleared">Cleared</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="duplicated">Duplicated</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (

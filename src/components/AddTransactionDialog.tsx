@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X, Tag } from "lucide-react";
-import { useTags, type TagNode } from "@/hooks/useTags";
+import { useTags } from "@/hooks/useTags";
+import type { TagNode } from "@/types/database";
 
 interface Transaction {
   id: string;
@@ -22,7 +23,7 @@ interface Transaction {
   description: string;
   amount: number;
   type: "income" | "expense" | "transfer";
-  status: "pending" | "cleared";
+  status: "pending" | "cleared" | "duplicated";
   tags?: string[];
   account_id?: string;
   from_account_id?: string;
@@ -58,7 +59,7 @@ export const AddTransactionDialog = ({
     description: "",
     amount: "",
     type: "expense" as "income" | "expense" | "transfer",
-    status: "cleared" as "pending" | "cleared",
+    status: "cleared" as "pending" | "cleared" | "duplicated",
     account_id: defaultAccountId || accounts[0]?.id || "",
     from_account_id: "",
     to_account_id: "",
@@ -235,7 +236,9 @@ export const AddTransactionDialog = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: "pending" | "cleared") => setFormData((prev) => ({ ...prev, status: value }))}
+                onValueChange={(value: "pending" | "cleared" | "duplicated") =>
+                  setFormData((prev) => ({ ...prev, status: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -243,6 +246,7 @@ export const AddTransactionDialog = ({
                 <SelectContent>
                   <SelectItem value="cleared">Cleared</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="duplicated">Duplicated</SelectItem>
                 </SelectContent>
               </Select>
             </div>

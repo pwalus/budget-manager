@@ -795,7 +795,7 @@ const Dashboard = () => {
                           <SelectItem value="all">All</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="cleared">Cleared</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="duplicated">Duplicated</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

@@ -39,7 +39,7 @@ export interface TagNode extends Tag {
 
 export type AccountType = 'bank' | 'credit' | 'savings' | 'investment';
 export type TransactionType = 'income' | 'expense' | 'transfer';
-export type TransactionStatus = 'pending' | 'cleared';
+export type TransactionStatus = 'pending' | 'cleared' | 'duplicated';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -48,4 +48,12 @@ export interface AuthState {
 export interface DatabaseError {
   message: string;
   code?: string;
+}
+
+export interface BulkImportResult {
+  success: boolean;
+  importedCount: number;
+  duplicatedCount: number;
+  skippedCount: number;
+  transactions: Transaction[];
 } 

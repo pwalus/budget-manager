@@ -43,7 +43,7 @@ interface Transaction {
   description: string;
   amount: number;
   type: "income" | "expense" | "transfer";
-  status: "pending" | "cleared";
+  status: "pending" | "cleared" | "duplicated";
   tags?: string[];
   account_id: string;
 }
